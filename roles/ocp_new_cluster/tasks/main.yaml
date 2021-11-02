@@ -1,0 +1,50 @@
+- name: Confirming if the Operating system is Mac
+  set_fact: 
+    os: mac
+  when: ansible_facts['os_family'] == "Darwin"
+
+- name: Confirming if the Operating system is Linux
+  set_fact: 
+    os: linux
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Creating the temporary folder structure for the Openshift cluster "{{ cluster_name }}"
+  ansible.builtin.file:
+    path: "/tmp/{{ cluster_name }}/ocp_cluster"
+    recurse: yes
+    state: directory
+
+- name: Download openshift install binary
+  get_url:
+    url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.9/openshift-install-{{ os }}.tar.gz"
+    dest: "/tmp/{{ cluster_name }}/openshift-install-{{ os }}.tar.gz"
+    mode: '0755'
+
+- name: Extracting the openshift install binary
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ cluster_name }}/openshift-install-{{ os }}.tar.gz"
+    dest: "/tmp/{{ cluster_name }}/"
+
+- name: Generating the project "{{ project_name }}" config files
+  ansible.builtin.template:
+    dest: "/tmp/{{ cluster_name }}/ocp_cluster/install-config.yaml"
+    src: install-config.yaml.j2
+
+- name: debugging and reviewing directory
+  shell: "ls -la /tmp/{{ cluster_name }}/ocp_cluster/install-config.yaml"
+  register: install_config_file
+
+- name: Printing the directory content
+  debug:
+    var: install_config_file
+  when: debug is defined
+
+- name: Installing the Openshift cluster "{{ cluster_name }}"
+  # command: './tmp/{{ cluster_name }}/openshift-install create cluster --dir=/tmp/{{ cluster_name }}/ocp_cluster --log-level=info'
+  shell: "/tmp/{{ cluster_name }}/openshift-install version"
+  register: ocp_version_used
+
+- name: Printing the variable for ocp_version_used
+  debug:
+    var: ocp_version_used
+  when: debug is defined
